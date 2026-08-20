@@ -108,13 +108,3 @@ Beispielsweise müssen nicht:
 * die Internetverbindung getrennt werden.
 
 Das Feldexperiment soll weiterhin eine realistische Nutzungssituation abbilden.
-
-## 8. Grundprinzip
-
-Die wichtigste Regel lautet:
-
-> **Das Skript definiert den Benchmark – diese Anleitung sorgt für eine möglichst saubere Durchführung.**
-
-Das Ziel besteht nicht darin, bei allen 30 Teilnehmenden eine identische Laborumgebung herzustellen. Stattdessen sollen offensichtliche und vermeidbare Störfaktoren reduziert werden, während die natürlichen Unterschiede der verwendeten Computersysteme bestehen bleiben.
-
-Dadurch können die Ergebnisse anschließend im Rahmen des Feldexperimentes ausgewertet und interpretiert werden.
