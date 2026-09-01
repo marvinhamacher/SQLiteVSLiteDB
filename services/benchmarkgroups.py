@@ -1,6 +1,8 @@
 from abc import abstractmethod, ABC
 
+from connectors.base import Connector
 from connectors.litedbconnector import LiteDBConnector
+from connectors.sqliteconnector import SQLiteConnector
 from testcases.delete_test import DeleteTest
 from testcases.insert_test import InsertTest
 from testcases.select_test import SelectTest
@@ -9,7 +11,7 @@ from testcases.update_test import UpdateTest
 
 
 class Benchmark(ABC):
-    results = [{},{},{}]
+    results = [{}, {}, {}]
     concurrency_levels = [
         1,
         2,
@@ -30,11 +32,12 @@ class Benchmark(ABC):
         }
 
 
-class LiteDBBenchmark(Benchmark):
-    def __init__(self):
+class InjectableBenchmark(Benchmark):
+
+    def __init__(self, db_driver: Connector):
         super().__init__()
 
-        self.database = LiteDBConnector()
+        self.database = db_driver
 
         self.insertTest = InsertTest(
             self.database
@@ -111,17 +114,3 @@ class LiteDBBenchmark(Benchmark):
 
     def close(self):
         self.database.close()
-
-
-class SQLiteBenchmark(Benchmark):
-    def test_latency(self):
-        pass
-
-    def test_queryrate(self):
-        pass
-
-    def test_tps(self):
-        pass
-
-    def run_test(self):
-        super().run_test()

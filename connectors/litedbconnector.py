@@ -1,8 +1,10 @@
 from pathlib import Path
 import clr
 
+from connectors.base import Connector
 
-class LiteDBConnector:
+
+class LiteDBConnector(Connector):
 
     def __init__(self):
         root = Path(__file__).resolve().parent.parent

@@ -1,8 +1,10 @@
 import sqlite3
 from pathlib import Path
 
+from connectors.base import Connector
 
-class SQLiteConnector:
+
+class SQLiteConnector(Connector):
 
     def __init__(self):
         root = Path(__file__).resolve().parent.parent

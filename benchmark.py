@@ -6,8 +6,8 @@ from services.benchmarkgroups import *
 from services.environmentservice import EnvironmentService
 
 ITERATIONS = 5
-sqlite = SQLiteBenchmark()
-litedb = LiteDBBenchmark()
+sqlite = InjectableBenchmark(SQLiteConnector())
+litedb = InjectableBenchmark(LiteDBConnector())
 
 
 def start_benchmark():
