@@ -9,7 +9,7 @@ from testcases.update_test import UpdateTest
 
 
 class Benchmark(ABC):
-    results = [{}, {}, {}]
+
     concurrency_levels = [
         1,
         2,
@@ -34,6 +34,7 @@ class InjectableBenchmark(Benchmark):
 
     def __init__(self, db_driver: Connector):
         super().__init__()
+        self.results = [{}, {}, {}]
 
         self.database = db_driver
 
@@ -101,11 +102,10 @@ class InjectableBenchmark(Benchmark):
             }
 
             self.results[2][concurrency] = {
-                "insert": insert_result.get("tps", 0),
-                "delete": delete_result.get("tps", 0),
-                "select": select_result.get("tps", 0),
-                "update": update_result.get("tps", 0),
-                "transaction": transaction_result.get("tps", 0)
+                "successful_transactions_per_second": (
+                        transaction_result.get("successful", 0)
+                        / (transaction_result.get("duration_ms", 0) / 1000)
+                )
             }
 
         return super().run_test()
