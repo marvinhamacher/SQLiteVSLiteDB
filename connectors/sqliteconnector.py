@@ -28,6 +28,7 @@ class SQLiteConnector(Connector):
 
     def _initialize_database(self):
         with sqlite3.connect(str(self.db_path)) as db:
+            db.execute("PRAGMA journal_mode=WAL")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS benchmark (
                     id TEXT PRIMARY KEY,
