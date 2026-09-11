@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 
 from connectors.base import Connector
 from testcases.delete_test import DeleteTest
@@ -10,79 +10,75 @@ from testcases.update_test import UpdateTest
 
 class Benchmark(ABC):
 
-    concurrency_levels = [
-        1,
-        2,
-        4,
-        8,
-        16
-    ]
+    concurrency_levels = [1, 2, 4, 8, 16]
 
     @abstractmethod
     def run_test(self):
-        res_latency = self.results[0]
-        res_queryrate = self.results[1]
-        res_tps = self.results[2]
         return {
-            "tps": res_tps,
-            "queryrate": res_queryrate,
-            "latency": res_latency
+            "tps": self.results[2],
+            "queryrate": self.results[1],
+            "latency": self.results[0],
         }
 
 
 class InjectableBenchmark(Benchmark):
 
     def __init__(self, db_driver: Connector):
-        super().__init__()
         self.results = [{}, {}, {}]
 
         self.database = db_driver
 
-        self.insertTest = InsertTest(
-            self.database
-        )
+        self.insert_test = InsertTest(self.database)
+        self.delete_test = DeleteTest(self.database)
+        self.select_test = SelectTest(self.database)
+        self.update_test = UpdateTest(self.database)
+        self.transaction_test = TransactionTest(self.database)
 
-        self.deleteTest = DeleteTest(
-            self.database
-        )
+    @staticmethod
+    def _per_second(result):
+        duration_seconds = result["duration_ms"] / 1000
 
-        self.selectTest = SelectTest(
-            self.database
-        )
+        if duration_seconds <= 0:
+            return 0
 
-        self.updateTest = UpdateTest(
-            self.database
-        )
+        return result["queries_sent"] / duration_seconds
 
-        self.transaction = TransactionTest(
-            self.database
-        )
+    @staticmethod
+    def _transactions_per_second(result):
+        duration_seconds = result["duration_ms"] / 1000
+
+        if duration_seconds <= 0:
+            return 0
+
+        return result["successful"] / duration_seconds
 
     def run_test(self):
+
         for concurrency in self.concurrency_levels:
-            insert_result = self.insertTest.run(
+
+            insert_result = self.insert_test.run(
                 amount=1000,
-                concurrency=concurrency
+                concurrency=concurrency,
             )
 
-            delete_result = self.deleteTest.run(
+            delete_result = self.delete_test.run(
                 amount=1000,
-                concurrency=concurrency
+                concurrency=concurrency,
             )
 
-            select_result = self.selectTest.run(
+            select_result = self.select_test.run(
                 amount=1000,
-                concurrency=concurrency
+                concurrency=concurrency,
             )
 
-            update_result = self.updateTest.run(
+            update_result = self.update_test.run(
                 amount=1000,
-                concurrency=concurrency
+                concurrency=concurrency,
             )
 
-            transaction_result = self.transaction.run(
+            transaction_result = self.transaction_test.run(
                 amount=1000,
-                concurrency=concurrency
+                concurrency=concurrency,
             )
 
             self.results[0][concurrency] = {
@@ -90,21 +86,20 @@ class InjectableBenchmark(Benchmark):
                 "delete": delete_result["latency"],
                 "select": select_result["latency"],
                 "update": update_result["latency"],
-                "transaction": transaction_result["latency"]
+                "transaction": transaction_result["latency"],
             }
 
             self.results[1][concurrency] = {
-                "insert": insert_result["queries_sent"] / (insert_result["duration_ms"] / 1000),
-                "delete": delete_result["queries_sent"] / (delete_result["duration_ms"] / 1000),
-                "select": select_result["queries_sent"] / (select_result["duration_ms"] / 1000),
-                "update": update_result["queries_sent"] / (update_result["duration_ms"] / 1000),
-                "transaction": transaction_result["queries_sent"] / (transaction_result["duration_ms"] / 1000)
+                "insert": self._per_second(insert_result),
+                "delete": self._per_second(delete_result),
+                "select": self._per_second(select_result),
+                "update": self._per_second(update_result),
+                "transaction": self._per_second(transaction_result),
             }
 
             self.results[2][concurrency] = {
                 "successful_transactions_per_second": (
-                        transaction_result.get("successful", 0)
-                        / (transaction_result.get("duration_ms", 0) / 1000)
+                    self._transactions_per_second(transaction_result)
                 )
             }
 
