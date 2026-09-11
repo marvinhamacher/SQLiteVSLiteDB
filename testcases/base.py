@@ -1,3 +1,4 @@
+import threading
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import perf_counter
@@ -13,6 +14,12 @@ class BaseTest(ABC):
         pass
 
     def run(self, amount=1000, concurrency=1):
+        print(
+            "RUN amount=", amount,
+            "concurrency=", concurrency,
+            "thread=", threading.get_ident(),
+            flush=True
+        )
         start = perf_counter()
 
         successful = 0
@@ -26,13 +33,17 @@ class BaseTest(ABC):
             ]
 
             for future in as_completed(futures):
+                print("FUTURE READY", flush=True)
+
                 try:
                     result = future.result()
+                    print("FUTURE RESULT", flush=True)
 
                     successful += 1
                     latencies.append(result["latency_ms"])
 
-                except Exception:
+                except Exception as e:
+                    print("FUTURE EXCEPTION", repr(e), flush=True)
                     failed += 1
 
         duration_ms = (perf_counter() - start) * 1000

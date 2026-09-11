@@ -1,8 +1,12 @@
+import logging
 from pathlib import Path
 
 import clr
 
 from connectors.base import Connector
+
+
+logger = logging.getLogger(__name__)
 
 
 class LiteDBConnector(Connector):
@@ -44,6 +48,8 @@ class LiteDBConnector(Connector):
             "benchmark",
             BsonAutoId.ObjectId
         )
+
+        logger.info("LiteDB connector initialized: db=%s", db_path)
 
     def _to_bson(self, value):
         if isinstance(value, self.BsonDocument):
@@ -96,41 +102,102 @@ class LiteDBConnector(Connector):
         return document
 
     def insert(self, data):
-        return self.collection.Insert(
-            self._to_document(data)
-        )
+        record_id = data["id"]
+
+        try:
+            result = self.collection.Insert(
+                self._to_document(data)
+            )
+            logger.debug("LiteDB INSERT id=%s", record_id)
+            return result
+        except Exception:
+            logger.exception("LiteDB INSERT failed: id=%s", record_id)
+            raise
 
     def find_all(self):
-        return list(
-            self.collection.FindAll()
-        )
+        try:
+            result = list(self.collection.FindAll())
+            logger.debug("LiteDB SELECT all: rows=%s", len(result))
+            return result
+        except Exception:
+            logger.exception("LiteDB SELECT all failed")
+            raise
 
     def find_by_id(self, record_id):
-        return self.collection.FindById(
-            self._to_bson(record_id)
-        )
+        try:
+            result = self.collection.FindById(
+                self._to_bson(record_id)
+            )
+            logger.debug(
+                "LiteDB SELECT id=%s: found=%s",
+                record_id,
+                result is not None,
+            )
+            return result
+        except Exception:
+            logger.exception("LiteDB SELECT failed: id=%s", record_id)
+            raise
 
     def update(self, data):
-        return self.collection.Update(
-            self._to_document(data)
-        )
+        record_id = data["id"]
+
+        try:
+            result = self.collection.Update(
+                self._to_document(data)
+            )
+            logger.debug("LiteDB UPDATE id=%s result=%s", record_id, result)
+            return result
+        except Exception:
+            logger.exception("LiteDB UPDATE failed: id=%s", record_id)
+            raise
 
     def delete(self, record_id):
-        return self.collection.Delete(
-            self._to_bson(record_id)
-        )
+        try:
+            result = self.collection.Delete(
+                self._to_bson(record_id)
+            )
+            logger.debug("LiteDB DELETE id=%s result=%s", record_id, result)
+            return result
+        except Exception:
+            logger.exception("LiteDB DELETE failed: id=%s", record_id)
+            raise
 
     def count(self):
-        return self.collection.Count()
+        try:
+            result = self.collection.Count()
+            logger.debug("LiteDB COUNT=%s", result)
+            return result
+        except Exception:
+            logger.exception("LiteDB COUNT failed")
+            raise
 
     def begin_transaction(self):
-        return self.db.BeginTrans()
+        try:
+            result = self.db.BeginTrans()
+            logger.debug("LiteDB transaction BEGIN")
+            return result
+        except Exception:
+            logger.exception("LiteDB transaction BEGIN failed")
+            raise
 
     def commit(self):
-        return self.db.Commit()
+        try:
+            result = self.db.Commit()
+            logger.debug("LiteDB transaction COMMIT")
+            return result
+        except Exception:
+            logger.exception("LiteDB transaction COMMIT failed")
+            raise
 
     def rollback(self):
-        return self.db.Rollback()
+        try:
+            result = self.db.Rollback()
+            logger.debug("LiteDB transaction ROLLBACK")
+            return result
+        except Exception:
+            logger.exception("LiteDB transaction ROLLBACK failed")
+            raise
 
     def close(self):
         self.db.Dispose()
+        logger.debug("LiteDB connection closed")
