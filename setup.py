@@ -330,7 +330,8 @@ def test_installation():
         )
 
         collection = db.GetCollection(
-            "setup_test"
+            "setup_test",
+            dict
         )
 
         collection.Insert({
