@@ -25,7 +25,7 @@ class SQLiteConnector(Connector):
         with sqlite3.connect(str(self.db_path)) as db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS benchmark (
-                    id INTEGER PRIMARY KEY,
+                    id TEXT PRIMARY KEY,
                     name TEXT,
                     value INTEGER,
                     category TEXT
@@ -104,7 +104,8 @@ class SQLiteConnector(Connector):
             )
         )
 
-        db.commit()
+        if not getattr(self._local, "in_transaction", False):
+            db.commit()
 
         return cursor.rowcount > 0
 
@@ -115,8 +116,8 @@ class SQLiteConnector(Connector):
             "DELETE FROM benchmark WHERE id = ?",
             (record_id,)
         )
-
-        db.commit()
+        if not getattr(self._local, "in_transaction", False):
+            db.commit()
 
         return cursor.rowcount > 0
 
@@ -142,8 +143,8 @@ class SQLiteConnector(Connector):
 
     def rollback(self):
         db, _ = self._get_connection()
-
         db.rollback()
+        self._local.in_transaction = False
 
     def close(self):
         if hasattr(self._local, "db"):

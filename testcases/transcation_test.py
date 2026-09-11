@@ -1,3 +1,4 @@
+import uuid
 from time import perf_counter
 
 from testcases.base import BaseTest
@@ -16,16 +17,11 @@ class TransactionTest(BaseTest):
         try:
             for i in range(self.OPERATIONS_PER_TRANSACTION):
 
-                record_id = (
-                    transaction_id
-                    * self.OPERATIONS_PER_TRANSACTION
-                    + i
-                )
-
+                record_id = str(uuid.uuid4())
                 self.database.insert({
                     "id": record_id,
                     "name": f"Transaction {transaction_id}",
-                    "value": record_id,
+                    "value": i,
                     "category": "transaction"
                 })
 

@@ -41,8 +41,7 @@ class LiteDBConnector(Connector):
         )
 
         self.collection = self.db.GetCollection(
-            "benchmark",
-            BsonAutoId.Int32,
+            "benchmark"
         )
 
     def _to_bson(self, value):
