@@ -61,7 +61,8 @@ class SQLiteConnector(Connector):
             )
         )
 
-        db.commit()
+        if not getattr(self._local, "in_transaction", False):
+            db.commit()
 
         return True
 
@@ -130,13 +131,14 @@ class SQLiteConnector(Connector):
 
     def begin_transaction(self):
         _, cursor = self._get_connection()
-
+        self._local.in_transaction = True
         cursor.execute("BEGIN")
 
     def commit(self):
         db, _ = self._get_connection()
 
         db.commit()
+        self._local.in_transaction = False
 
     def rollback(self):
         db, _ = self._get_connection()

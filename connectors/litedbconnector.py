@@ -42,7 +42,7 @@ class LiteDBConnector(Connector):
 
         self.collection = self.db.GetCollection(
             "benchmark",
-            BsonAutoId.ObjectId,
+            BsonAutoId.Int32,
         )
 
     def _to_bson(self, value):
@@ -85,9 +85,19 @@ class LiteDBConnector(Connector):
             f"{type(value).__name__}"
         )
 
+    def _to_document(self, data):
+        document = self.BsonDocument()
+        for key, value in data.items():
+            if key == "id":
+                document["_id"] = self._to_bson(value)
+            else:
+                document[str(key)] = self._to_bson(value)
+
+        return document
+
     def insert(self, data):
         return self.collection.Insert(
-            self._to_bson(data)
+            self._to_document(data)
         )
 
     def find_all(self):
@@ -102,7 +112,7 @@ class LiteDBConnector(Connector):
 
     def update(self, data):
         return self.collection.Update(
-            self._to_bson(data)
+            self._to_document(data)
         )
 
     def delete(self, record_id):

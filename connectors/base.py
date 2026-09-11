@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class Connector(ABC):
     @abstractmethod
-    def insert(self, data):
+    def insert(self, datae):
         pass
 
     @abstractmethod
