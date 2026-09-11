@@ -61,11 +61,6 @@ class InjectableBenchmark(Benchmark):
                 concurrency=concurrency,
             )
 
-            delete_result = self.delete_test.run(
-                amount=1000,
-                concurrency=concurrency,
-            )
-
             select_result = self.select_test.run(
                 amount=1000,
                 concurrency=concurrency,
@@ -81,20 +76,25 @@ class InjectableBenchmark(Benchmark):
                 concurrency=concurrency,
             )
 
+            delete_result = self.delete_test.run(
+                amount=1000,
+                concurrency=concurrency,
+            )
+
             self.results[0][concurrency] = {
                 "insert": insert_result["latency"],
-                "delete": delete_result["latency"],
                 "select": select_result["latency"],
                 "update": update_result["latency"],
                 "transaction": transaction_result["latency"],
+                "delete": delete_result["latency"],
             }
 
             self.results[1][concurrency] = {
                 "insert": self._per_second(insert_result),
-                "delete": self._per_second(delete_result),
                 "select": self._per_second(select_result),
                 "update": self._per_second(update_result),
                 "transaction": self._per_second(transaction_result),
+                "delete": self._per_second(delete_result),
             }
 
             self.results[2][concurrency] = {

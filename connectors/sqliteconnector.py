@@ -1,4 +1,5 @@
 import sqlite3
+import threading
 from pathlib import Path
 
 from connectors.base import Connector
@@ -9,30 +10,44 @@ class SQLiteConnector(Connector):
     def __init__(self):
         root = Path(__file__).resolve().parent.parent
 
-        db_path = root / "resources" / "DB" / "sqlite.db"
+        self.db_path = root / "resources" / "DB" / "sqlite.db"
 
-        db_path.parent.mkdir(
+        self.db_path.parent.mkdir(
             parents=True,
             exist_ok=True
         )
 
-        self.db = sqlite3.connect(str(db_path))
+        self._local = threading.local()
 
-        self.cursor = self.db.cursor()
+        self._initialize_database()
 
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS benchmark (
-                id INTEGER PRIMARY KEY,
-                name TEXT,
-                value INTEGER,
-                category TEXT
+    def _initialize_database(self):
+        with sqlite3.connect(str(self.db_path)) as db:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS benchmark (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    value INTEGER,
+                    category TEXT
+                )
+            """)
+
+            db.commit()
+
+    def _get_connection(self):
+        if not hasattr(self._local, "db"):
+            self._local.db = sqlite3.connect(
+                str(self.db_path)
             )
-        """)
 
-        self.db.commit()
+            self._local.cursor = self._local.db.cursor()
+
+        return self._local.db, self._local.cursor
 
     def insert(self, data):
-        self.cursor.execute(
+        db, cursor = self._get_connection()
+
+        cursor.execute(
             """
             INSERT INTO benchmark
             (id, name, value, category)
@@ -46,27 +61,33 @@ class SQLiteConnector(Connector):
             )
         )
 
-        self.db.commit()
+        db.commit()
 
         return True
 
     def find_all(self):
-        self.cursor.execute(
+        _, cursor = self._get_connection()
+
+        cursor.execute(
             "SELECT * FROM benchmark"
         )
 
-        return self.cursor.fetchall()
+        return cursor.fetchall()
 
     def find_by_id(self, record_id):
-        self.cursor.execute(
+        _, cursor = self._get_connection()
+
+        cursor.execute(
             "SELECT * FROM benchmark WHERE id = ?",
             (record_id,)
         )
 
-        return self.cursor.fetchone()
+        return cursor.fetchone()
 
     def update(self, data):
-        self.cursor.execute(
+        db, cursor = self._get_connection()
+
+        cursor.execute(
             """
             UPDATE benchmark
             SET name = ?,
@@ -82,35 +103,49 @@ class SQLiteConnector(Connector):
             )
         )
 
-        self.db.commit()
+        db.commit()
 
-        return self.cursor.rowcount > 0
+        return cursor.rowcount > 0
 
     def delete(self, record_id):
-        self.cursor.execute(
+        db, cursor = self._get_connection()
+
+        cursor.execute(
             "DELETE FROM benchmark WHERE id = ?",
             (record_id,)
         )
 
-        self.db.commit()
+        db.commit()
 
-        return self.cursor.rowcount > 0
+        return cursor.rowcount > 0
 
     def count(self):
-        self.cursor.execute(
+        _, cursor = self._get_connection()
+
+        cursor.execute(
             "SELECT COUNT(*) FROM benchmark"
         )
 
-        return self.cursor.fetchone()[0]
+        return cursor.fetchone()[0]
 
     def begin_transaction(self):
-        self.cursor.execute("BEGIN")
+        _, cursor = self._get_connection()
+
+        cursor.execute("BEGIN")
 
     def commit(self):
-        self.db.commit()
+        db, _ = self._get_connection()
+
+        db.commit()
 
     def rollback(self):
-        self.db.rollback()
+        db, _ = self._get_connection()
+
+        db.rollback()
 
     def close(self):
-        self.db.close()
+        if hasattr(self._local, "db"):
+            self._local.db.close()
+
+            del self._local.db
+            del self._local.cursor
