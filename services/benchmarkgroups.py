@@ -93,11 +93,11 @@ class InjectableBenchmark(Benchmark):
             }
 
             self.results[1][concurrency] = {
-                "insert": insert_result["query_rate"],
-                "delete": delete_result["query_rate"],
-                "select": select_result["query_rate"],
-                "update": update_result["query_rate"],
-                "transaction": transaction_result["query_rate"]
+                "insert": insert_result["queries_sent"] / (insert_result["duration_ms"] / 1000),
+                "delete": delete_result["queries_sent"] / (delete_result["duration_ms"] / 1000),
+                "select": select_result["queries_sent"] / (select_result["duration_ms"] / 1000),
+                "update": update_result["queries_sent"] / (update_result["duration_ms"] / 1000),
+                "transaction": transaction_result["queries_sent"] / (transaction_result["duration_ms"] / 1000)
             }
 
             self.results[2][concurrency] = {
