@@ -19,6 +19,7 @@ def start_benchmark():
     config = env_service.gather_system_information()
     rep_service = ReportService(config, user)
     for i in range(ITERATIONS):
+        print("Iteration {}".format(i))
         sqlite_res = []
         sqlite_time = timeit.timeit(
             lambda: sqlite_res.append(sqlite.run_test()),

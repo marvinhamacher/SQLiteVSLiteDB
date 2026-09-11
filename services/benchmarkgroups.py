@@ -56,26 +56,27 @@ class InjectableBenchmark(Benchmark):
 
         for concurrency in self.concurrency_levels:
 
+            print(f"insert {concurrency}")
             insert_result = self.insert_test.run(
                 amount=1000,
                 concurrency=concurrency,
             )
-
+            print(f"select {concurrency}")
             select_result = self.select_test.run(
                 amount=1000,
                 concurrency=concurrency,
             )
-
+            print(f"update  {concurrency}")
             update_result = self.update_test.run(
                 amount=1000,
                 concurrency=concurrency,
             )
-
+            print(f"transaction {concurrency}")
             transaction_result = self.transaction_test.run(
                 amount=1000,
                 concurrency=concurrency,
             )
-
+            print(f"delete {concurrency}")
             delete_result = self.delete_test.run(
                 amount=1000,
                 concurrency=concurrency,
