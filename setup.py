@@ -4,10 +4,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 LITEDB_VERSION = "5.0.21"
 
 ROOT = Path(__file__).resolve().parent
+
 RESOURCES = ROOT / "resources"
 DB_DIR = RESOURCES / "DB"
 LIB_DIR = RESOURCES / "lib"
@@ -16,7 +16,9 @@ NUGET_DIR = ROOT / ".nuget"
 
 
 def run(command, cwd=None):
-    print(f"> {' '.join(map(str, command))}")
+    """Run a command and stop setup if it fails."""
+
+    print(f"\n> {' '.join(map(str, command))}")
 
     subprocess.check_call(
         command,
@@ -32,21 +34,24 @@ def check_python():
     print("Checking Python...")
 
     if sys.version_info < (3, 10):
-        print("ERROR: Python 3.10 or newer is required.")
+        print(
+            "\nERROR: Python 3.10 or newer is required."
+        )
         sys.exit(1)
 
-    print(f"Python {sys.version.split()[0]} OK")
+    print(
+        f"Python {sys.version.split()[0]} OK"
+    )
 
 
 def check_dotnet():
-    print("Checking .NET SDK...")
+    print("\nChecking .NET SDK...")
 
     if not check_command("dotnet"):
         print(
             "\nERROR: .NET SDK was not found.\n"
             "Please install the .NET SDK and run setup.py again."
         )
-
         sys.exit(1)
 
     result = subprocess.run(
@@ -56,7 +61,9 @@ def check_dotnet():
         check=True
     )
 
-    print(f".NET {result.stdout.strip()} OK")
+    print(
+        f".NET SDK {result.stdout.strip()} OK"
+    )
 
 
 def install_python_packages():
@@ -106,11 +113,15 @@ def create_dotnet_project():
         "-n",
         "LiteDBProject",
         "--framework",
-        "net10.0"
+        "netstandard2.0"
     ], cwd=NUGET_DIR)
 
     return project_dir
 
+
+# ============================================================
+# Install LiteDB through NuGet
+# ============================================================
 
 def install_litedb(project_dir):
     print(
@@ -127,88 +138,234 @@ def install_litedb(project_dir):
     ], cwd=project_dir)
 
 
-def copy_litedb_dll(project_dir):
-    print("\nLocating LiteDB.dll...")
+# ============================================================
+# Build project
+# ============================================================
 
-    package_dir = (
+def build_dotnet_project(project_dir):
+    print("\nBuilding temporary .NET project...")
+
+    run([
+        "dotnet",
+        "build",
+        "--configuration",
+        "Release"
+    ], cwd=project_dir)
+
+
+# ============================================================
+# Copy LiteDB and dependencies
+# ============================================================
+
+def copy_litedb_dependencies(project_dir):
+    print("\nCopying LiteDB and dependencies...")
+
+    output_dir = (
         project_dir
-        / "obj"
-        / "project.assets.json"
+        / "bin"
+        / "Release"
+        / "netstandard2.0"
     )
 
-    if not package_dir.exists():
-        print("ERROR: NuGet package restore failed.")
+    if not output_dir.exists():
+        print(
+            "\nERROR: .NET build output was not found."
+        )
         sys.exit(1)
 
-    nuget_package = (
-        Path.home()
-        / ".nuget"
-        / "packages"
-        / "litedb"
-        / LITEDB_VERSION
-        / "lib"
-    )
+    copied = []
 
-    if not nuget_package.exists():
-        print(
-            "ERROR: LiteDB NuGet package was not found."
+    # --------------------------------------------------------
+    # First try the build output.
+    # --------------------------------------------------------
+
+    for dll in output_dir.glob("*.dll"):
+
+        # The temporary project itself is not needed.
+        if dll.name == "LiteDBProject.dll":
+            continue
+
+        target = LIB_DIR / dll.name
+
+        shutil.copy2(
+            dll,
+            target
         )
 
-        sys.exit(1)
+        copied.append(dll.name)
 
-    dlls = list(
-        nuget_package.rglob("LiteDB.dll")
+    # --------------------------------------------------------
+    # Explicitly locate System.Buffers.
+    #
+    # This is the dependency which caused the original error.
+    # --------------------------------------------------------
+
+    buffers_dlls = list(
+        (
+            Path.home()
+            / ".nuget"
+            / "packages"
+            / "system.buffers"
+        ).rglob("lib/*/System.Buffers.dll")
     )
 
-    if not dlls:
-        print(
-            "ERROR: LiteDB.dll was not found."
+    if buffers_dlls:
+        # Prefer the newest package version available.
+        buffers_dlls.sort()
+
+        buffers_source = buffers_dlls[-1]
+        buffers_target = LIB_DIR / "System.Buffers.dll"
+
+        shutil.copy2(
+            buffers_source,
+            buffers_target
         )
 
-        sys.exit(1)
+        if "System.Buffers.dll" not in copied:
+            copied.append("System.Buffers.dll")
 
-    source = dlls[0]
-    target = LIB_DIR / "LiteDB.dll"
+    # --------------------------------------------------------
+    # LiteDB itself must exist.
+    # --------------------------------------------------------
 
-    shutil.copy2(
-        source,
-        target
-    )
+    litedb = LIB_DIR / "LiteDB.dll"
 
-    print(f"Installed: {target}")
+    if not litedb.exists():
 
+        # Fallback: search NuGet cache directly.
+        nuget_package = (
+            Path.home()
+            / ".nuget"
+            / "packages"
+            / "litedb"
+            / LITEDB_VERSION
+            / "lib"
+        )
+
+        dlls = list(
+            nuget_package.rglob("LiteDB.dll")
+        )
+
+        if not dlls:
+            print(
+                "\nERROR: LiteDB.dll was not found."
+            )
+            sys.exit(1)
+
+        shutil.copy2(
+            dlls[0],
+            litedb
+        )
+
+        copied.append("LiteDB.dll")
+
+    print("\nInstalled .NET assemblies:")
+
+    for dll in sorted(set(copied)):
+        print(f"    {dll}")
+
+
+# ============================================================
+# Test the complete installation
+# ============================================================
 
 def test_installation():
     print("\nTesting installation...")
 
-    dll = LIB_DIR / "LiteDB.dll"
+    litedb_dll = LIB_DIR / "LiteDB.dll"
 
-    if not dll.exists():
-        print("ERROR: LiteDB.dll is missing.")
+    if not litedb_dll.exists():
+        print(
+            "ERROR: LiteDB.dll is missing."
+        )
         sys.exit(1)
 
     try:
         import psutil
         import clr
 
+        if str(LIB_DIR) not in sys.path:
+            sys.path.insert(
+                0,
+                str(LIB_DIR)
+            )
+
+        buffers_dll = LIB_DIR / "System.Buffers.dll"
+
+        if buffers_dll.exists():
+            print(
+                "Loading System.Buffers.dll..."
+            )
+
+            clr.AddReference(
+                str(buffers_dll)
+            )
+
+        print(
+            "Loading LiteDB.dll..."
+        )
+
         clr.AddReference(
-            str(dll)
+            str(litedb_dll)
         )
 
         from LiteDB import LiteDatabase
 
         print("psutil OK")
         print("pythonnet OK")
-        print("LiteDB OK")
+        print("System.Buffers OK")
+        print("LiteDB assembly OK")
 
-        # Keine DB öffnen.
-        # Der eigentliche Benchmark erstellt sie.
+        test_db = DB_DIR / "setup_test.db"
+
+        if test_db.exists():
+            test_db.unlink()
+
+        print(
+            "Opening temporary LiteDB database..."
+        )
+
+        db = LiteDatabase(
+            str(test_db)
+        )
+
+        collection = db.GetCollection(
+            "setup_test"
+        )
+
+        collection.Insert({
+            "id": 1,
+            "message": "setup test"
+        })
+
+        result = collection.FindById(1)
+
+        if result is None:
+            raise RuntimeError(
+                "LiteDB test insert/read failed."
+            )
+
+        db.Dispose()
+
+        if test_db.exists():
+            test_db.unlink()
+
+        print(
+            "LiteDB database test OK"
+        )
 
     except Exception as exc:
+
         print(
             "\nERROR: LiteDB/Python.NET test failed:"
         )
+
         print(exc)
+
+        print(
+            "\nThe LiteDB DLL or one of its dependencies "
+            "could not be loaded."
+        )
 
         sys.exit(1)
 
@@ -217,35 +374,73 @@ def cleanup():
     print("\nCleaning temporary files...")
 
     if NUGET_DIR.exists():
-        shutil.rmtree(NUGET_DIR)
-
+        shutil.rmtree(
+            NUGET_DIR
+        )
 
 def main():
+
     print("=" * 60)
     print("Database Benchmark Setup")
     print("=" * 60)
 
-    check_python()
-    check_dotnet()
+    try:
 
-    create_directories()
-    install_python_packages()
+        check_python()
 
-    project_dir = create_dotnet_project()
+        check_dotnet()
 
-    install_litedb(project_dir)
-    copy_litedb_dll(project_dir)
+        create_directories()
 
-    cleanup()
-    test_installation()
+        install_python_packages()
 
-    print("\n" + "=" * 60)
-    print("SETUP COMPLETE")
-    print("=" * 60)
+        project_dir = create_dotnet_project()
 
-    print("\nYou can now run:")
-    print("    python benchmark.py")
+        install_litedb(
+            project_dir
+        )
+
+        build_dotnet_project(
+            project_dir
+        )
+
+        copy_litedb_dependencies(
+            project_dir
+        )
+
+        test_installation()
+
+        cleanup()
+
+        print("\n" + "=" * 60)
+        print("SETUP COMPLETE")
+        print("=" * 60)
+
+        print(
+            "\nYou can now run:"
+        )
+
+        print(
+            "    python benchmark.py"
+        )
+
+    except Exception:
+
+        print(
+            "\nSetup failed."
+        )
+
+        print(
+            "Temporary files were kept in:"
+        )
+
+        print(
+            f"    {NUGET_DIR}"
+        )
+
+        raise
 
 
 if __name__ == "__main__":
     main()
+
