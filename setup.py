@@ -106,7 +106,7 @@ def create_dotnet_project():
         "-n",
         "LiteDBProject",
         "--framework",
-        "net8.0"
+        "net10.0"
     ], cwd=NUGET_DIR)
 
     return project_dir

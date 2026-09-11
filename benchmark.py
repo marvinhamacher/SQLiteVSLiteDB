@@ -1,6 +1,8 @@
 # TODO: Quasi die Main des Benchmarking tools
 import timeit
 
+from connectors.litedbconnector import LiteDBConnector
+from connectors.sqliteconnector import SQLiteConnector
 from services.reportmanagement import ReportService
 from services.benchmarkgroups import *
 from services.environmentservice import EnvironmentService
@@ -44,3 +46,7 @@ def start_benchmark():
             },
             iteration_nr=i + 1
         )
+
+
+if __name__ == "__main__":
+    start_benchmark()
