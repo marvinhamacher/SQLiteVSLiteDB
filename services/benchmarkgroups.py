@@ -1,8 +1,6 @@
 from abc import abstractmethod, ABC
 
 from connectors.base import Connector
-from connectors.litedbconnector import LiteDBConnector
-from connectors.sqliteconnector import SQLiteConnector
 from testcases.delete_test import DeleteTest
 from testcases.insert_test import InsertTest
 from testcases.select_test import SelectTest
