@@ -14,18 +14,12 @@ class Benchmark(ABC):
 
     @abstractmethod
     def run_test(self):
-        return {
-            "tps": self.results[2],
-            "queryrate": self.results[1],
-            "latency": self.results[0],
-        }
+        pass
 
 
 class InjectableBenchmark(Benchmark):
 
     def __init__(self, db_driver: Connector):
-        self.results = [{}, {}, {}]
-
         self.database = db_driver
 
         self.insert_test = InsertTest(self.database)
@@ -53,6 +47,9 @@ class InjectableBenchmark(Benchmark):
         return result["successful"] / duration_seconds
 
     def run_test(self):
+        latency_results = {}
+        queryrate_results = {}
+        tps_results = {}
 
         for concurrency in self.concurrency_levels:
 
@@ -61,28 +58,32 @@ class InjectableBenchmark(Benchmark):
                 amount=1000,
                 concurrency=concurrency,
             )
+
             print(f"select {concurrency}")
             select_result = self.select_test.run(
                 amount=1000,
                 concurrency=concurrency,
             )
-            print(f"update  {concurrency}")
+
+            print(f"update {concurrency}")
             update_result = self.update_test.run(
                 amount=1000,
                 concurrency=concurrency,
             )
+
             print(f"transaction {concurrency}")
             transaction_result = self.transaction_test.run(
                 amount=1000,
                 concurrency=concurrency,
             )
+
             print(f"delete {concurrency}")
             delete_result = self.delete_test.run(
                 amount=1000,
                 concurrency=concurrency,
             )
 
-            self.results[0][concurrency] = {
+            latency_results[concurrency] = {
                 "insert": insert_result["latency"],
                 "select": select_result["latency"],
                 "update": update_result["latency"],
@@ -90,7 +91,7 @@ class InjectableBenchmark(Benchmark):
                 "delete": delete_result["latency"],
             }
 
-            self.results[1][concurrency] = {
+            queryrate_results[concurrency] = {
                 "insert": self._per_second(insert_result),
                 "select": self._per_second(select_result),
                 "update": self._per_second(update_result),
@@ -98,13 +99,17 @@ class InjectableBenchmark(Benchmark):
                 "delete": self._per_second(delete_result),
             }
 
-            self.results[2][concurrency] = {
+            tps_results[concurrency] = {
                 "successful_transactions_per_second": (
                     self._transactions_per_second(transaction_result)
                 )
             }
 
-        return super().run_test()
+        return {
+            "tps": tps_results,
+            "queryrate": queryrate_results,
+            "latency": latency_results,
+        }
 
     def close(self):
         self.database.close()
